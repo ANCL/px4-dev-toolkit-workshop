@@ -1,0 +1,20 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>workshop_offboard_controller</name>
+  <version>0.1.0</version>
+  <description>ROS 2 PX4 Offboard Control Workshop Node for Beginners</description>
+  <maintainer email="ddwalton@ualberta.ca">ANCL</maintainer>
+  <license>BSD-3-Clause</license>
+
+  <buildtool_depend>ament_cmake</buildtool_depend>
+
+  <depend>rclcpp</depend>
+  <depend>px4_msgs</depend>
+  <depend>geometry_msgs</depend>
+  <depend>sensor_msgs</depend>
+
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+</package>
