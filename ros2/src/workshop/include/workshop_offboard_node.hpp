@@ -64,7 +64,7 @@ private:
   double kv_{1.5};         // Velocity gain [N*s/m]
   
   // Circle Parameters
-  double circle_radius_{2.0};
+  double circle_radius_{1.0};
   double circle_omega_{0.5};
   double circle_altitude_{-1.2}; // NED Frame: Negative is UP
 

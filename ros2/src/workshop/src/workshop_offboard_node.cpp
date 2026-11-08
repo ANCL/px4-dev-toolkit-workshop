@@ -5,8 +5,8 @@ using namespace std::chrono_literals;
 WorkshopOffboardNode::WorkshopOffboardNode() : Node("workshop_offboard_node") {
   // Declare Parameters
   this->declare_parameter<double>("mass", 2.0);
-  this->declare_parameter<double>("kx", 3.0);
-  this->declare_parameter<double>("kv", 1.5);
+  this->declare_parameter<double>("kx", 2.0);
+  this->declare_parameter<double>("kv", 2.0);
   this->declare_parameter<std::string>("trajectory_mode", "circle"); // "circle", "figure_eight"
 
   this->get_parameter("mass", mass_);
@@ -57,13 +57,7 @@ WorkshopOffboardNode::WorkshopOffboardNode() : Node("workshop_offboard_node") {
       std::bind(&WorkshopOffboardNode::odometry_callback, this, std::placeholders::_1));
   
   // ================
-
-  // Subscribe to the reference trajectory topic
-  trajectory_sub_ = this->create_subscription<px4_msgs::msg::TrajectorySetpoint>(
-      "/workshop/reference_trajectory",
-      10,
-      std::bind(&WorkshopOffboardNode::reference_trajectory_callback, this, std::placeholders::_1));
-
+  
   // control_loop_callback() will be called every 10ms (100Hz)
   timer_ = this->create_timer(10ms, std::bind(&WorkshopOffboardNode::control_loop_callback, this));
   start_time_ = this->now();
