@@ -53,9 +53,9 @@ WorkshopOffboardNode::WorkshopOffboardNode() : Node("workshop_offboard_node") {
   // Hint 2: the callback function is odometry_callback()
   // ============================================================================
   vehicle_odometry_sub_ = this->create_subscription<px4_msgs::msg::VehicleOdometry>(
-      "/fmu/out/vehicle_odometry",
+      YOUR CODE HERE, 
       qos,
-      std::bind(&WorkshopOffboardNode::odometry_callback, this, std::placeholders::_1));
+      std::bind(&WorkshopOffboardNode::<YOUR CODE HERE>, this, std::placeholders::_1));
   
   // control_loop_callback() will be called every 10ms (100Hz)
   timer_ = this->create_timer(10ms, std::bind(&WorkshopOffboardNode::control_loop_callback, this));
@@ -70,9 +70,7 @@ WorkshopOffboardNode::WorkshopOffboardNode() : Node("workshop_offboard_node") {
 void WorkshopOffboardNode::odometry_callback(const px4_msgs::msg::VehicleOdometry::SharedPtr msg) {
   current_pos_ = Eigen::Vector3d(msg->position[0], msg->position[1], msg->position[2]);
   
-  // === TO REMOVE ===
-  current_vel_ = Eigen::Vector3d(msg->velocity[0], msg->velocity[1], msg->velocity[2]);
-  // ================
+  // YOUR CODE HERE: Get the current velocity of the vehicle from the odometry message
   
   odom_received_ = true;
 }
@@ -103,25 +101,8 @@ void WorkshopOffboardNode::compute_waypoints_trajectory(double t, Eigen::Vector3
   vel_d = Eigen::Vector3d::Zero();
   acc_d = Eigen::Vector3d::Zero();
 
-  // Bounding box compliant target altitude (z = -0.8m in NED)
-  const double target_z = -0.8;
-
-  // 4 Waypoints inside |x|, |y| <= 1.0
-  const Eigen::Vector3d wp1( 0.5,  0.5, target_z);  // Top Right
-  const Eigen::Vector3d wp2( 0.5, -0.5, target_z);  // Bottom Right
-  const Eigen::Vector3d wp3(-0.5, -0.5, target_z);  // Bottom Left
-  const Eigen::Vector3d wp4(-0.5,  0.5, target_z);  // Top Left
-
-  // Waypoint time-based state machine (10-second hold at each waypoint)
-  if (t < 10.0) {
-    pos_d = wp1;
-  } else if (t < 20.0) {
-    pos_d = wp2;
-  } else if (t < 30.0) {
-    pos_d = wp3;
-  } else {
-    pos_d = wp4; // Holds at WP4 for t >= 30s
-  }
+  // YOUR CODE HERE: Implement the waypoint trajectory generation logic
+  // pos_d = ?
 }
 
 
@@ -186,16 +167,17 @@ void WorkshopOffboardNode::control_loop_callback() {
   // 
   // The acceleration command is calculated using the following formula:
   // a_cmd = a_d - (k_x / m) * e_x - (k_v / m) * e_v
+  // Where:
+  // a_d: desired acceleration from the trajectory generator
+  // e_x: position error (current position - desired position)
+  // e_v: velocity error (current velocity - desired velocity)
+  // m: mass of the vehicle
   // ============================================================================
   
   Eigen::Vector3d a_cmd = Eigen::Vector3d::Zero();
 
-  // === TO REMOVE ===
-  Eigen::Vector3d e_x = current_pos_ - pos_d;
-  Eigen::Vector3d e_v = current_vel_ - vel_d;
-
-  a_cmd = acc_d - (kx_ / mass_) * e_x - (kv_ / mass_) * e_v;
-  // ================
+  // YOUR CODE HERE: Implement the acceleration command calculation
+  // a_cmd = ? 
 
   // Publish acceleration command to PX4
   publish_trajectory_setpoint(a_cmd);
