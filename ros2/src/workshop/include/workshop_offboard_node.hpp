@@ -14,7 +14,7 @@
 
 enum class TrajectoryType {
   CIRCLE,
-  STEP,
+  WAYPOINTS,
   FIGURE_EIGHT
 };
 
@@ -28,7 +28,7 @@ private:
 
   // Trajectory Generators
   void compute_circle_trajectory(double t, Eigen::Vector3d &pos_d, Eigen::Vector3d &vel_d, Eigen::Vector3d &acc_d);
-  void compute_step_trajectory(double t, Eigen::Vector3d &pos_d, Eigen::Vector3d &vel_d, Eigen::Vector3d &acc_d);
+  void compute_waypoints_trajectory(double t, Eigen::Vector3d &pos_d, Eigen::Vector3d &vel_d, Eigen::Vector3d &acc_d);
   void compute_figure_eight_trajectory(double t, Eigen::Vector3d &pos_d, Eigen::Vector3d &vel_d, Eigen::Vector3d &acc_d);
 
   // Helper Functions for PX4 Offboard Communication

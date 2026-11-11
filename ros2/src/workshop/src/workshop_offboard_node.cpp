@@ -19,6 +19,8 @@ WorkshopOffboardNode::WorkshopOffboardNode() : Node("workshop_offboard_node") {
   // Set trajectory type based on parameter
   if (mode_str == "figure_eight") {
     traj_type_ = TrajectoryType::FIGURE_EIGHT;
+  } else if (mode_str == "waypoints") {
+    traj_type_ = TrajectoryType::WAYPOINTS;
   } else {
     traj_type_ = TrajectoryType::CIRCLE;
   }
@@ -43,7 +45,6 @@ WorkshopOffboardNode::WorkshopOffboardNode() : Node("workshop_offboard_node") {
   auto qos = rclcpp::QoS(rclcpp::QoSInitialization(qos_profile.history, 5), qos_profile);
 
 
-  // === TO REMOVE ===
   // ============================================================================
   // TASK 1: Subscribe to ROS 2 topic for vehicle odometry so you can get the 
   // current position and velocity of the vehicle
@@ -55,8 +56,6 @@ WorkshopOffboardNode::WorkshopOffboardNode() : Node("workshop_offboard_node") {
       "/fmu/out/vehicle_odometry",
       qos,
       std::bind(&WorkshopOffboardNode::odometry_callback, this, std::placeholders::_1));
-  
-  // ================
   
   // control_loop_callback() will be called every 10ms (100Hz)
   timer_ = this->create_timer(10ms, std::bind(&WorkshopOffboardNode::control_loop_callback, this));
@@ -94,17 +93,34 @@ void WorkshopOffboardNode::compute_circle_trajectory(double t, Eigen::Vector3d &
   acc_d = Eigen::Vector3d(-R * w * w * std::cos(w * t), -R * w * w * std::sin(w * t), 0.0);
 }
 
-// Step Trajectory Generator
-void WorkshopOffboardNode::compute_step_trajectory(double t, Eigen::Vector3d &pos_d, Eigen::Vector3d &vel_d, Eigen::Vector3d &acc_d) {
-  // Step trajectory: hover at a fixed position for 15 seconds, then step to a new position
-  if (t < 15.0) {
-    pos_d = Eigen::Vector3d(0.0, 0.0, circle_altitude_);
-    vel_d = Eigen::Vector3d(0.0, 0.0, 0.0);
-    acc_d = Eigen::Vector3d(0.0, 0.0, 0.0);
+// Waypoints Trajectory Generator
+// ============================================================================
+// TASK 3: Implement the compute_waypoints_trajectory() function to generate 
+// 4 waypoints within the bounding box (|x|,|y| <= 1.0, -0.6 > z > -1.2)
+// ============================================================================
+void WorkshopOffboardNode::compute_waypoints_trajectory(double t, Eigen::Vector3d &pos_d, Eigen::Vector3d &vel_d, Eigen::Vector3d &acc_d) {
+  // Step/Setpoint commands have zero target velocity and acceleration
+  vel_d = Eigen::Vector3d::Zero();
+  acc_d = Eigen::Vector3d::Zero();
+
+  // Bounding box compliant target altitude (z = -0.8m in NED)
+  const double target_z = -0.8;
+
+  // 4 Waypoints inside |x|, |y| <= 1.0
+  const Eigen::Vector3d wp1( 0.5,  0.5, target_z);  // Top Right
+  const Eigen::Vector3d wp2( 0.5, -0.5, target_z);  // Bottom Right
+  const Eigen::Vector3d wp3(-0.5, -0.5, target_z);  // Bottom Left
+  const Eigen::Vector3d wp4(-0.5,  0.5, target_z);  // Top Left
+
+  // Waypoint time-based state machine (10-second hold at each waypoint)
+  if (t < 10.0) {
+    pos_d = wp1;
+  } else if (t < 20.0) {
+    pos_d = wp2;
+  } else if (t < 30.0) {
+    pos_d = wp3;
   } else {
-    pos_d = Eigen::Vector3d(0.5, 0.5, circle_altitude_);
-    vel_d = Eigen::Vector3d(0.0, 0.0, 0.0);
-    acc_d = Eigen::Vector3d(0.0, 0.0, 0.0);
+    pos_d = wp4; // Holds at WP4 for t >= 30s
   }
 }
 
@@ -158,8 +174,8 @@ void WorkshopOffboardNode::control_loop_callback() {
     case TrajectoryType::FIGURE_EIGHT:
       compute_figure_eight_trajectory(t, pos_d, vel_d, acc_d);
       break;
-    case TrajectoryType::STEP:
-      compute_step_trajectory(t, pos_d, vel_d, acc_d);
+    case TrajectoryType::WAYPOINTS:
+      compute_waypoints_trajectory(t, pos_d, vel_d, acc_d);
       break;
   }
 
