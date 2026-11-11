@@ -1,71 +1,145 @@
-# PX4 Development Toolkit
+# PX4 & ROS 2 Offboard Control Workshop Guide
 
-A PX4 and ROS 2 environment for developing and studying flight control in Gazebo simulation and on physical multirotors.
+This guide provides step-by-step instructions to set up the simulation environment, complete the missing node implementation tasks, build your ROS 2 workspace, and launch the offboard controller node.
 
-The toolkit brings together reproducible runtime setup, controller examples, experiment recording, and flight-data analysis. Simulation and companion-computer installations are independent, and external source revisions are pinned.
+---
 
-**[Full documentation](https://ancl.github.io/px4-dev-toolkit/)** · **[Get started](https://ancl.github.io/px4-dev-toolkit/get-started/)** · **[Operations](https://ancl.github.io/px4-dev-toolkit/operations/)** · **[Controllers](https://ancl.github.io/px4-dev-toolkit/controllers/)** · **[Experiments](https://ancl.github.io/px4-dev-toolkit/experiments/sitl-example/)**
+## Environment Setup & Execution Flow
 
-## Choose an environment
+### Step 1: Launch the SITL Environment
 
-| Environment | Purpose | Installation |
-|---|---|---|
-| Native SITL | PX4, Gazebo Harmonic, and ROS 2 Jazzy on Ubuntu 24.04 | [Native Ubuntu](https://ancl.github.io/px4-dev-toolkit/get-started/sitl/ubuntu/) |
-| Docker SITL | Prebuilt, headless simulation with controllers and analysis | [Docker](https://ancl.github.io/px4-dev-toolkit/get-started/sitl/docker/) |
-| Companion computer | ROS 2 Jazzy, Vicon pose conversion, and a serial DDS agent for a physical PX4 flight controller | [Companion computer](https://ancl.github.io/px4-dev-toolkit/get-started/companion/) |
-
-The companion profile does not install PX4 SITL or Gazebo. The physical vehicle needs its own PX4 firmware, airframe configuration, estimator setup, RC/failsafe provisions, and flight-readiness checks.
-
-## Quick start: Docker SITL
-
-On a Linux host with Docker, create persistent data directories and start the published SITL image:
+Open a terminal and start the PX4 SITL simulation environment (Gazebo, QGC, and MicroXRCE-DDS agent inside TMUX):
 
 ```bash
-mkdir -p bags log
-docker pull ghcr.io/ancl/px4-dev-toolkit-sitl:latest
-docker run --rm -it --name px4-sitl --network host \
-  -v "$PWD/bags:/opt/px4-dev-toolkit/bags" \
-  -v "$PWD/log:/opt/px4-dev-toolkit/log" \
-  ghcr.io/ancl/px4-dev-toolkit-sitl:latest bash
+tools/sitl start
 ```
 
-Inside the container, start the simulation without a Gazebo GUI:
+---
 
-```bash
-./tools/sitl start headless
+### Step 2: Complete the Implementation Tasks
+
+Open `workshop_offboard_node.cpp` and complete the four required implementation tasks marked with `// YOUR CODE HERE`:
+
+#### Task 1: Subscribe to Vehicle Odometry
+
+In the constructor, set up the ROS 2 subscriber for the topic `"/fmu/out/vehicle_odometry"`:
+
+<details>
+<summary>Answer</summary>
+
+```cpp
+
+vehicle_odometry_sub_ = this->create_subscription<px4_msgs::msg::VehicleOdometry>(
+    "/fmu/out/vehicle_odometry", 
+    qos,
+    std::bind(&WorkshopOffboardNode::odometry_callback, this, std::placeholders::_1));
+
+```
+</details>
+
+
+#### Task 2: Extract Current Velocity
+
+Inside `odometry_callback()`, parse the current velocity vector from the incoming odometry message:
+
+<details>
+<summary>Answer</summary>
+
+```cpp
+current_vel_ = Eigen::Vector3d(msg->velocity[0], msg->velocity[1], msg->velocity[2]);
 ```
 
-Leave that container running. In a **second host terminal**, open another shell in it:
+</details>
 
-```bash
-docker exec -it px4-sitl bash
+#### Task 3: Implement Waypoint Trajectory Generation
+
+In `compute_waypoints_trajectory()`, create logic to switch between 4 waypoints over time within the bounding box ($\vert{}x\vert{}, \vert{}y\vert{} \le 1.0$, $-1.2 < z < -0.6$).
+
+<details>
+<summary>Answer</summary>
+
+```cpp
+// Cycle through 4 waypoints every 10 seconds
+int cycle = static_cast<int>(t / 10.0) % 4;
+
+switch (cycle) {
+    case 0: pos_d = Eigen::Vector3d(0.5, 0.5, -0.8); break;
+    case 1: pos_d = Eigen::Vector3d(-0.5, 0.5, -1.0); break;
+    case 2: pos_d = Eigen::Vector3d(-0.5, -0.5, -0.8); break;
+    case 3: pos_d = Eigen::Vector3d(0.5, -0.5, -1.0); break;
+}
 ```
 
-In the second container shell, check PX4 and ROS 2 communication:
+</details>
+
+#### Task 4: Implement Acceleration Control Law
+
+In `control_loop_callback()`, calculate position error $e_x$, velocity error $e_v$, and compute the target acceleration vector $a_{cmd}$:
+
+$$\mathbf{a}_{cmd} = \mathbf{a}_d - \frac{k_x}{m}\mathbf{e}_x - \frac{k_v}{m}\mathbf{e}_v$$
+
+<details>
+<summary>Answer</summary>
+
+```cpp
+Eigen::Vector3d e_x = current_pos_ - pos_d;
+Eigen::Vector3d e_v = current_vel_ - vel_d;
+
+Eigen::Vector3d a_cmd = acc_d - (kx_ / mass_) * e_x - (kv_ / mass_) * e_v;
+```
+
+</details>
+
+---
+
+### Step 3: Build the ROS 2 Package
+
+Open a **second terminal** and compile the ROS 2 workspace:
 
 ```bash
-cd /opt/px4-dev-toolkit
+ros2/build.sh
+```
+
+---
+
+### Step 4: Source the Environment and Run the Node
+
+1. Source the workspace environment variables:
+
+```bash
 source ros2/runtime_env.sh
-./tools/sitl status
-./tools/topic_rates
 ```
 
-Stop the rate display with Ctrl-C. Starting SITL does **not** arm or fly the vehicle. Follow [First simulation](https://ancl.github.io/px4-dev-toolkit/get-started/first-simulation/) for the reference flight, and [Running SITL](https://ancl.github.io/px4-dev-toolkit/operations/sitl/) for landing, disarming, and shutdown. The [Docker guide](https://ancl.github.io/px4-dev-toolkit/get-started/sitl/docker/) explains volumes, permissions, and graphical options.
+2. Run the offboard control node with your chosen trajectory mode (`waypoints`, `circle`, or `figure_eight`):
 
-## Controllers and experiments
+* **Waypoints Mode:**
 
-The toolkit includes a PX4 Position-mode reference flight, a separate Offboard staging helper, Offboard position control, and an SE(3) controller with **six documented configurations**: acceleration, attitude, attitude rate, geometric normalized torque, geometric physical torque, and a PX4 rate-loop reproduction. Each configuration delegates different stages of control to PX4; PX4 retains actuator allocation.
+```bash
+ros2 run workshop_offboard_controller workshop_offboard_node --ros-args -p trajectory_mode:="waypoints"
 
-Use the [controller overview](https://ancl.github.io/px4-dev-toolkit/controllers/) to choose an interface and the [SE(3) documentation](https://ancl.github.io/px4-dev-toolkit/controllers/offboard/se3/) for mathematics, implementation, and vehicle requirements. The [trajectory guide](https://ancl.github.io/px4-dev-toolkit/experiments/trajectories/) describes shared reference motions.
+```
 
-Experiments can record rosbags, execute an ordered six-mode study, analyze individual runs, and compare compatible controller runs. Begin with the [complete experiment](https://ancl.github.io/px4-dev-toolkit/experiments/sitl-example/); [recording](https://ancl.github.io/px4-dev-toolkit/experiments/recording/), [sequences](https://ancl.github.io/px4-dev-toolkit/experiments/sequences/), and [analysis](https://ancl.github.io/px4-dev-toolkit/experiments/analysis/) are documented separately. A finalized bag is not, by itself, evidence of a successful or comparable flight.
+* **Circle Mode:**
 
-## Source and extensions
+```bash
+ros2 run workshop_offboard_controller workshop_offboard_node --ros-args -p trajectory_mode:="circle"
 
-`trajectory_generator/` contains reusable C++ trajectory generation and analytic sampling; `ros2/` contains ROS 2 packages and controllers; `tools/` contains runtime, recording-study, and analysis commands; `analysis/` defines report and comparison logic; `config/` holds vehicle, trajectory, runtime, topic, source, and study configuration. The toolkit fetches pinned external projects rather than vendoring them into the repository.
+```
 
-See [Software structure](https://ancl.github.io/px4-dev-toolkit/reference/architecture/), [Configuration files](https://ancl.github.io/px4-dev-toolkit/reference/configuration/), and [Extending the toolkit](https://ancl.github.io/px4-dev-toolkit/extending/) before adding a controller, vehicle, trajectory, or analysis profile. Contributions should include the affected behavior and verification results.
+* **Figure-Eight Mode:**
 
-## License
+```bash
+ros2 run workshop_offboard_controller workshop_offboard_node --ros-args -p trajectory_mode:="figure_eight"
 
-Toolkit code is released under the [BSD 3-Clause License](LICENSE). Fetched third-party projects retain their upstream licenses.
+```
+
+---
+
+## Quick Reference Summary
+
+| Terminal | Command | Purpose |
+| --- | --- | --- |
+| **Terminal 1** | `tools/sitl start` | Launches Gazebo, QGC, and MicroXRCE-DDS |
+| **Terminal 2** | `ros2/build.sh` | Compiles ROS 2 code |
+| **Terminal 2** | `source ros2/runtime_env.sh` | Sets ROS 2 environment variables |
+| **Terminal 2** | `ros2 run workshop_offboard_controller workshop_offboard_node --ros-args -p trajectory_mode:="waypoints"` | Executes controller node |
