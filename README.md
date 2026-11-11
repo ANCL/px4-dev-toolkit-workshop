@@ -18,7 +18,13 @@ tools/sitl start
 
 ### Step 2: Complete the Implementation Tasks
 
-Open `workshop_offboard_node.cpp` and complete the four required implementation tasks marked with `// YOUR CODE HERE`:
+Go to `ros2/src/workshop/src/`
+
+```bash
+cd ros2/src/workshop/src/
+```
+
+Open `workshop_offboard_node.cpp` in a text editor and complete the four required implementation tasks marked with `// YOUR CODE HERE`:
 
 #### Task 1: Subscribe to Vehicle Odometry
 
