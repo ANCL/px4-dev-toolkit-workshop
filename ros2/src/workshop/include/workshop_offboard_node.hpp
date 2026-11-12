@@ -11,6 +11,7 @@
 #include "px4_msgs/msg/trajectory_setpoint.hpp"
 #include "px4_msgs/msg/vehicle_command.hpp"
 #include "px4_msgs/msg/vehicle_odometry.hpp"
+#include "px4_msgs/msg/vehicle_status.hpp"
 
 enum class TrajectoryType {
   CIRCLE,
@@ -23,7 +24,7 @@ public:
   WorkshopOffboardNode();
 
 private:
-  // Timer callback (Main control loop at 50 Hz)
+  // Timer callback (Main control loop at 100 Hz)
   void control_loop_callback();
 
   // Trajectory Generators
@@ -38,6 +39,7 @@ private:
 
   // Callbacks
   void odometry_callback(const px4_msgs::msg::VehicleOdometry::SharedPtr msg);
+  void status_callback(const px4_msgs::msg::VehicleStatus::SharedPtr msg);
   void reference_trajectory_callback(const px4_msgs::msg::TrajectorySetpoint::SharedPtr msg);
 
   // ROS 2 Subscriptions & Publishers
@@ -47,6 +49,7 @@ private:
 
   rclcpp::Subscription<px4_msgs::msg::VehicleOdometry>::SharedPtr vehicle_odometry_sub_;
   rclcpp::Subscription<px4_msgs::msg::TrajectorySetpoint>::SharedPtr trajectory_sub_;
+  rclcpp::Subscription<px4_msgs::msg::VehicleStatus>::SharedPtr vehicle_status_sub_;
 
   rclcpp::TimerBase::SharedPtr timer_;
 
@@ -57,11 +60,12 @@ private:
   bool odom_received_{false};
   uint64_t offboard_setpoint_counter_{0};
   rclcpp::Time start_time_;
+  uint cur_state_;
 
   // Drone Parameters & Controller Gains
-  double mass_{2.0};       // Drone mass [kg]
-  double kx_{3.0};         // Position gain [N/m]
-  double kv_{1.5};         // Velocity gain [N*s/m]
+  double mass_{2.07};      // Drone mass [kg]
+  double kx_{2.0};         // Position gain [N/m]
+  double kv_{2.0};         // Velocity gain [N*s/m]
   
   // Circle Parameters
   double circle_radius_{1.0};
