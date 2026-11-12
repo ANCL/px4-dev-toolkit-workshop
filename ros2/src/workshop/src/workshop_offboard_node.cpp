@@ -52,11 +52,7 @@ WorkshopOffboardNode::WorkshopOffboardNode() : Node("workshop_offboard_node") {
   // Hint 1: the topic name is "/fmu/out/vehicle_odometry"
   // Hint 2: the callback function is odometry_callback()
   // ============================================================================
-  vehicle_odometry_sub_ = this->create_subscription<px4_msgs::msg::VehicleOdometry>(
-      "/fmu/out/vehicle_odometry",
-      qos,
-      std::bind(&WorkshopOffboardNode::odometry_callback, this, std::placeholders::_1));
-  
+  vehicle_odometry_sub_ = // YOUR CODE HERE
 
   vehicle_status_sub_ = this->create_subscription<px4_msgs::msg::VehicleStatus>(
     "/fmu/out/vehicle_status_v1",
@@ -77,9 +73,7 @@ WorkshopOffboardNode::WorkshopOffboardNode() : Node("workshop_offboard_node") {
 void WorkshopOffboardNode::odometry_callback(const px4_msgs::msg::VehicleOdometry::SharedPtr msg) {
   current_pos_ = Eigen::Vector3d(msg->position[0], msg->position[1], msg->position[2]);
   
-  // === TO REMOVE ===
-  current_vel_ = Eigen::Vector3d(msg->velocity[0], msg->velocity[1], msg->velocity[2]);
-  // ================
+  current_vel_ = // YOUR CODE HERE
   
   odom_received_ = true;
 }
@@ -124,25 +118,8 @@ void WorkshopOffboardNode::compute_waypoints_trajectory(double t, Eigen::Vector3
   vel_d = Eigen::Vector3d::Zero();
   acc_d = Eigen::Vector3d::Zero();
 
-  // Bounding box compliant target altitude (z = -0.8m in NED)
-  const double target_z = -0.8;
-
-  // 4 Waypoints inside |x|, |y| <= 1.0
-  const Eigen::Vector3d wp1( 0.5,  0.5, target_z);  // Top Right
-  const Eigen::Vector3d wp2( 0.5, -0.5, target_z);  // Bottom Right
-  const Eigen::Vector3d wp3(-0.5, -0.5, target_z);  // Bottom Left
-  const Eigen::Vector3d wp4(-0.5,  0.5, target_z);  // Top Left
-
-  // Waypoint time-based state machine (10-second hold at each waypoint)
-  if (t < 10.0) {
-    pos_d = wp1;
-  } else if (t < 20.0) {
-    pos_d = wp2;
-  } else if (t < 30.0) {
-    pos_d = wp3;
-  } else {
-    pos_d = wp4; // Holds at WP4 for t >= 30s
-  }
+  // YOUR CODE HERE
+  // pos_d = ?
 }
 
 
@@ -165,19 +142,6 @@ void WorkshopOffboardNode::control_loop_callback() {
   // Send initial setpoints before switching to offboard mode
   // This is required by PX4 before it will allow offboard mode to be engaged
   publish_offboard_control_mode();
-
-  if (offboard_setpoint_counter_ == 10) {
-    // Request PX4 to switch to Offboard mode and arm vehicle
-    
-    // Disabled for now.
-    //this->publish_vehicle_command(px4_msgs::msg::VehicleCommand::VEHICLE_CMD_DO_SET_MODE, 1, 6);
-    //this->publish_vehicle_command(px4_msgs::msg::VehicleCommand::VEHICLE_CMD_COMPONENT_ARM_DISARM, 1.0);
-  }
-
-  if (offboard_setpoint_counter_ <= 20) {
-    offboard_setpoint_counter_++;
-    return;
-  }
 
   if (!odom_received_) {
     RCLCPP_WARN_THROTTLE(this->get_logger(), *this->get_clock(), 1000, "Waiting for Vehicle Odometry...");
@@ -209,16 +173,18 @@ void WorkshopOffboardNode::control_loop_callback() {
   // 
   // The acceleration command is calculated using the following formula:
   // a_cmd = a_d - (k_x / m) * e_x - (k_v / m) * e_v
+  // * a_cmd is the acceleration command we're sending to PX4
+  // * a_d is the desired acceleration (setpoint)
+  // * e_x is the position error (actual - desired)
+  // * e_v is the velocity error (actual - desired)
+  // * k_x, k_v are gains
+  // * m is the vehicle's mass
   // ============================================================================
   
   Eigen::Vector3d a_cmd = Eigen::Vector3d::Zero();
 
-  // === TO REMOVE ===
-  Eigen::Vector3d e_x = current_pos_ - pos_d;
-  Eigen::Vector3d e_v = current_vel_ - vel_d;
-
-  a_cmd = acc_d - (kx_ / mass_) * e_x - (kv_ / mass_) * e_v;
-  // ================
+  // YOUR CODE HERE
+  // a_cmd = ?
 
   // Publish acceleration command to PX4 only in offboard mode
   if (cur_state_ == px4_msgs::msg::VehicleStatus::NAVIGATION_STATE_OFFBOARD) {
