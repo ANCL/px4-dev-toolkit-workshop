@@ -103,7 +103,7 @@ Eigen::Vector3d a_cmd = acc_d - (kx_ / mass_) * e_x - (kv_ / mass_) * e_v;
 Open a **second terminal** and compile the ROS 2 workspace:
 
 ```bash
-ros2/build.sh
+ros2/build.sh sitl
 ```
 
 ---
